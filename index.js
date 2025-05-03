@@ -1,23 +1,19 @@
-const express = require('express');
-const cors = require('cors');
-const fetch = require('node-fetch');
-
-const app = express();
-
-app.use(cors());
-app.use(express.json());
-
-app.get('/', (req, res) => {
-  res.send('✅ n8n Create Proxy is running!');
-});
-
 app.post('/proxy/create', async (req, res) => {
   const { n8nUrl, apiKey, workflow } = req.body;
 
   try {
+    if (!workflow || typeof workflow !== 'object') {
+      return res.status(400).json({ error: 'Invalid workflow object.' });
+    }
+    if (!workflow.nodes || !Array.isArray(workflow.nodes) || workflow.nodes.length === 0) {
+      return res.status(400).json({ error: 'Workflow must contain nodes.' });
+    }
+    if (!workflow.connections || typeof workflow.connections !== 'object') {
+      return res.status(400).json({ error: 'Workflow must contain connections.' });
+    }
+
     const cleanedUrl = n8nUrl.replace(/\/+$/, '');
 
-    // 워크플로우에서 불필요하거나 에러 유발하는 필드 제거
     const cleanedWorkflow = {
       name: workflow.name,
       nodes: workflow.nodes,
@@ -25,12 +21,11 @@ app.post('/proxy/create', async (req, res) => {
       settings: workflow.settings || {},
     };
 
-    // 확실하게 제거
     delete cleanedWorkflow.id;
     delete cleanedWorkflow.meta;
     delete cleanedWorkflow.versionId;
     delete cleanedWorkflow.active;
-    delete cleanedWorkflow.tags; // ❌ tags read-only 오류 방지
+    delete cleanedWorkflow.tags;
 
     const response = await fetch(`${cleanedUrl}/api/v1/workflows`, {
       method: 'POST',
@@ -42,11 +37,13 @@ app.post('/proxy/create', async (req, res) => {
     });
 
     const text = await response.text();
-
     console.log('➡️ Status:', response.status);
     console.log('📝 Response:', text);
 
-    // 응답 JSON 파싱 시도, 실패 시 text 그대로 반환
+    if (!text || text.trim() === '') {
+      return res.status(response.status).send();
+    }
+
     try {
       res.status(response.status).json(JSON.parse(text));
     } catch {
@@ -56,9 +53,4 @@ app.post('/proxy/create', async (req, res) => {
     console.error('❌ Error:', err);
     res.status(500).json({ error: err.message });
   }
-});
-
-const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => {
-  console.log(`🚀 n8n Create Proxy running on port ${PORT}`);
 });
