@@ -13,9 +13,16 @@ app.get('/', (req, res) => {
 
 // 🆕 워크플로우 생성
 app.post('/proxy/create', async (req, res) => {
-  const { n8nUrl, apiKey, workflow } = req.body;
+  let { n8nUrl, apiKey, workflow } = req.body;
+
   try {
     const cleanedUrl = n8nUrl.replace(/\/+$/, "");
+
+    // 🧼 active 필드 제거 (read-only 이기 때문에 삭제 필요)
+    if ('active' in workflow) {
+      delete workflow.active;
+    }
+
     const response = await fetch(`${cleanedUrl}/api/v1/workflows`, {
       method: 'POST',
       headers: {
@@ -24,6 +31,7 @@ app.post('/proxy/create', async (req, res) => {
       },
       body: JSON.stringify(workflow),
     });
+
     const data = await response.json();
     res.status(response.status).json(data);
   } catch (err) {
