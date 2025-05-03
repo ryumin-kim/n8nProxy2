@@ -4,26 +4,35 @@ const fetch = require('node-fetch');
 
 const app = express();
 
-app.use(cors());
+// ✅ 강력한 CORS 허용
+app.use(cors({
+  origin: '*',
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'X-N8N-API-KEY'],
+}));
+
 app.use(express.json());
 
 app.get('/', (req, res) => {
   res.send('🧼 n8n Clean Create Proxy is running!');
 });
 
-// 워크플로우 생성 (id, meta 등 제거 후 POST)
+// 🧠 워크플로우 생성: 불필요 필드 제거 후 POST
 app.post('/proxy/create', async (req, res) => {
-  let { n8nUrl, apiKey, workflow } = req.body;
+  const { n8nUrl, apiKey, workflow } = req.body;
 
   try {
-    // POST 요청이므로 id/meta/versionId는 제거
+    if (!n8nUrl || !apiKey || !workflow) {
+      return res.status(400).json({ error: 'Missing required fields (n8nUrl, apiKey, workflow).' });
+    }
+
+    // ❌ 제거해야 할 필드
     const cleanedWorkflow = { ...workflow };
     delete cleanedWorkflow.id;
     delete cleanedWorkflow.versionId;
     delete cleanedWorkflow.active;
     delete cleanedWorkflow.meta;
 
-    // 끝 슬래시 제거
     const cleanedUrl = n8nUrl.replace(/\/+$/, "");
 
     const response = await fetch(`${cleanedUrl}/api/v1/workflows`, {
@@ -35,12 +44,21 @@ app.post('/proxy/create', async (req, res) => {
       body: JSON.stringify(cleanedWorkflow),
     });
 
-    const data = await response.json();
-    res.status(response.status).json(data);
+    const text = await response.text();
+
+    // 응답이 JSON이 아닐 수도 있으므로 파싱 시도
+    try {
+      const json = JSON.parse(text);
+      res.status(response.status).json(json);
+    } catch {
+      res.status(response.status).send(text);
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 const PORT = process.env.PORT || 3002;
-app.listen(PORT, () => console.log(`✅ Clean Create Proxy running on port ${PORT}`));
+app.listen(PORT, () => {
+  console.log(`✅ Clean Create Proxy running on port ${PORT}`);
+});
