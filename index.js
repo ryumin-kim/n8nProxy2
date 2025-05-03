@@ -17,20 +17,20 @@ app.post('/proxy/create', async (req, res) => {
   try {
     const cleanedUrl = n8nUrl.replace(/\/+$/, '');
 
-    // 복사 후 필드 제거
+    // 워크플로우에서 불필요하거나 에러 유발하는 필드 제거
     const cleanedWorkflow = {
       name: workflow.name,
       nodes: workflow.nodes,
       connections: workflow.connections,
       settings: workflow.settings || {},
-      tags: workflow.tags || []
     };
 
-    // 혹시 포함되어 있으면 확실히 제거
+    // 확실하게 제거
     delete cleanedWorkflow.id;
     delete cleanedWorkflow.meta;
     delete cleanedWorkflow.versionId;
     delete cleanedWorkflow.active;
+    delete cleanedWorkflow.tags; // ❌ tags read-only 오류 방지
 
     const response = await fetch(`${cleanedUrl}/api/v1/workflows`, {
       method: 'POST',
@@ -46,10 +46,11 @@ app.post('/proxy/create', async (req, res) => {
     console.log('➡️ Status:', response.status);
     console.log('📝 Response:', text);
 
+    // 응답 JSON 파싱 시도, 실패 시 text 그대로 반환
     try {
       res.status(response.status).json(JSON.parse(text));
     } catch {
-      res.status(response.status).send(text);  // fallback to raw
+      res.status(response.status).send(text);
     }
   } catch (err) {
     console.error('❌ Error:', err);
