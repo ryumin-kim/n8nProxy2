@@ -1,3 +1,16 @@
+const express = require('express');
+const cors = require('cors');
+const fetch = require('node-fetch');
+
+const app = express();
+
+app.use(cors());
+app.use(express.json());
+
+app.get('/', (req, res) => {
+  res.send('✅ n8n Create Proxy is running!');
+});
+
 app.post('/proxy/create', async (req, res) => {
   const { n8nUrl, apiKey, workflow } = req.body;
 
@@ -21,6 +34,7 @@ app.post('/proxy/create', async (req, res) => {
       settings: workflow.settings || {},
     };
 
+    // 제거
     delete cleanedWorkflow.id;
     delete cleanedWorkflow.meta;
     delete cleanedWorkflow.versionId;
@@ -53,4 +67,9 @@ app.post('/proxy/create', async (req, res) => {
     console.error('❌ Error:', err);
     res.status(500).json({ error: err.message });
   }
+});
+
+const PORT = process.env.PORT || 3002;
+app.listen(PORT, () => {
+  console.log(`🚀 n8n Create Proxy running on port ${PORT}`);
 });
