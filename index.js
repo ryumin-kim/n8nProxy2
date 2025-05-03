@@ -17,14 +17,20 @@ app.post('/proxy/create', async (req, res) => {
   try {
     const cleanedUrl = n8nUrl.replace(/\/+$/, '');
 
-    // 워크플로우 클린 구조 구성
+    // 복사 후 필드 제거
     const cleanedWorkflow = {
       name: workflow.name,
       nodes: workflow.nodes,
       connections: workflow.connections,
       settings: workflow.settings || {},
-      tags: workflow.tags || [],
+      tags: workflow.tags || []
     };
+
+    // 혹시 포함되어 있으면 확실히 제거
+    delete cleanedWorkflow.id;
+    delete cleanedWorkflow.meta;
+    delete cleanedWorkflow.versionId;
+    delete cleanedWorkflow.active;
 
     const response = await fetch(`${cleanedUrl}/api/v1/workflows`, {
       method: 'POST',
@@ -37,12 +43,14 @@ app.post('/proxy/create', async (req, res) => {
 
     const text = await response.text();
 
-    // 디버깅 로그 출력
     console.log('➡️ Status:', response.status);
     console.log('📝 Response:', text);
 
-    // JSON 파싱 후 전송
-    res.status(response.status).json(JSON.parse(text));
+    try {
+      res.status(response.status).json(JSON.parse(text));
+    } catch {
+      res.status(response.status).send(text);  // fallback to raw
+    }
   } catch (err) {
     console.error('❌ Error:', err);
     res.status(500).json({ error: err.message });
