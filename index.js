@@ -25,6 +25,11 @@ app.post('/proxy/create', async (req, res) => {
       return res.status(400).json({ error: 'Workflow must contain connections.' });
     }
 
+    // ✅ name 필드가 없으면 기본값 지정
+    if (!workflow.name) {
+      workflow.name = 'Untitled Workflow ' + Date.now();
+    }
+
     const cleanedUrl = n8nUrl.replace(/\/+$/, '');
 
     const cleanedWorkflow = {
@@ -34,7 +39,7 @@ app.post('/proxy/create', async (req, res) => {
       settings: workflow.settings || {},
     };
 
-    // 제거
+    // 불필요한 필드 제거
     delete cleanedWorkflow.id;
     delete cleanedWorkflow.meta;
     delete cleanedWorkflow.versionId;
